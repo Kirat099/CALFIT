@@ -25,3 +25,6 @@ Open `index.html` in a browser, or publish the files through GitHub Pages.
 - The `3 Months / 6 Months / 1 Year / All Time` filters on the overview update the selected filter state; the detailed chart has its own date-range filters.
 - LocalStorage does not sync data across devices.
 - Meal Plan and additional Progress modules are reserved for later phases.
+
+## Home sizing refinement
+The Home dashboard has been tightened: smaller header and week selector, reduced card padding and vertical gaps, a smaller calorie ring, denser macro rows, and a slightly shorter bottom navigation. Progress/detail screens retain their larger, scrollable layout.
