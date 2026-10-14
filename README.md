@@ -1,27 +1,27 @@
-# CALFIT — Fresh Home Dashboard
+# CALFIT — Phase 1 Progress
 
-A fresh, mobile-first CALFIT dashboard built with plain HTML, CSS, and JavaScript. No frameworks or build tools.
+Plain HTML, CSS and JavaScript. No frameworks or build tools.
 
 ## Files
-- `index.html` — dashboard structure and modal forms
-- `style.css` — visual styling and responsive layout
-- `app.js` — carousel, weekly selector, food/activity logging, daily goals, water and sleep tracking, LocalStorage persistence
+- `index.html` — Home, Progress overview, and dedicated Weight Progress page
+- `style.css` — responsive Calfix-inspired UI styling
+- `app.js` — dashboard, weight goals, weight logging, history, SVG trend chart, LocalStorage persistence
+
+## Phase 1 features
+- Home dashboard retained with nutrition/activity/wellness carousel.
+- Progress tab has a Goal Progress card and 3 Months / 6 Months / 1 Year / All Time selectors.
+- Separate Weight Progress view is opened through the card's **View details** button and has a Back to Progress control.
+- Set a starting weight and target weight.
+- Log, edit and delete dated weight check-ins.
+- Weight history graph with 7D / 1M / 3M / 6M / 1Y / All filters, target line, and real recorded points only.
+- Current, starting, target and remaining weight summaries.
+- Data persists in LocalStorage on the same browser/device.
 
 ## Run
-Open `index.html` in a browser. For best results, publish the three files to GitHub Pages or run a small local static server.
-
-## Current features
-- Soft grey gradient background, rounded translucent cards and gentle shadows
-- Weekly date selector
-- Swipeable dashboard carousel: Nutrition, Activity, Wellness
-- Calorie ring and protein/carbs/fats progress bars
-- Food and activity entry forms
-- Steps, estimated distance, calories burned, water and sleep logging
-- Editable calorie and macro goals in Settings
-- LocalStorage persistence on the current browser/device
-- Responsive mobile layout and bottom navigation
+Open `index.html` in a browser, or publish the files through GitHub Pages.
 
 ## Notes
-- Entries and settings are stored locally in the browser; they do not sync across devices.
-- Progress and Meal Plan navigation are visual placeholders for future stages.
-- The visual design is newly written from the requested Calfix screenshot description and does not depend on any other app template.
+- The Progress screen starts with an empty state rather than invented historical data.
+- The `3 Months / 6 Months / 1 Year / All Time` filters on the overview update the selected filter state; the detailed chart has its own date-range filters.
+- LocalStorage does not sync data across devices.
+- Meal Plan and additional Progress modules are reserved for later phases.

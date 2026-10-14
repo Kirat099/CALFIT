@@ -1,195 +1,62 @@
 (() => {
-  "use strict";
-
-  const $ = (id) => document.getElementById(id);
-  const STORE_KEY = "calfit_fresh_v1";
-  const todayKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
-  const defaultState = () => ({
-    selectedDate: todayKey(),
-    goals: { calories: 2200, protein: 100, carbs: 250, fats: 70 },
-    days: {},
-    streak: 0
-  });
-  let state = loadState();
-  let currentSlide = 0;
-  let toastTimer;
-
-  function loadState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORE_KEY));
-      return saved && saved.goals && saved.days ? { ...defaultState(), ...saved, goals: { ...defaultState().goals, ...saved.goals } } : defaultState();
-    } catch { return defaultState(); }
-  }
-  function saveState() {
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
-  }
-  function dayData(key = state.selectedDate) {
-    if (!state.days[key]) state.days[key] = { entries: [], steps: 0, burned: 0, water: 0, sleep: 0 };
-    return state.days[key];
-  }
-  function num(value) { return Math.max(0, Number(value) || 0); }
-  function sumEntries(entries, key) {
-    return entries.reduce((sum, item) => sum + num(item[key]), 0);
-  }
-  function clampPercent(value, goal) { return Math.min(100, goal > 0 ? (value / goal) * 100 : 0); }
-  function formatNumber(value) { return Math.round(value).toLocaleString("en-IN"); }
-  function parseDate(key) { const [y,m,d] = key.split("-").map(Number); return new Date(y,m-1,d); }
-  function shiftDate(key, amount) { const d = parseDate(key); d.setDate(d.getDate()+amount); return todayKey(d); }
-  function shortMonth(date) { return date.toLocaleDateString("en-IN", { month:"long", year:"numeric" }); }
-
-  function renderWeek() {
-    const selected = parseDate(state.selectedDate);
-    // Always show the week containing the selected day, Monday to Sunday.
-    const monday = new Date(selected);
-    const offset = (monday.getDay() + 6) % 7;
-    monday.setDate(monday.getDate() - offset);
-    $("monthLabel").textContent = shortMonth(selected);
-    const strip = $("weekStrip");
-    strip.innerHTML = "";
-    for (let i=0; i<7; i++) {
-      const d = new Date(monday); d.setDate(monday.getDate()+i);
-      const key = todayKey(d);
-      const btn = document.createElement("button");
-      btn.className = `day-button${key===state.selectedDate ? " selected" : ""}${key===todayKey() ? " today" : ""}`;
-      btn.innerHTML = `<span class="day-name">${d.toLocaleDateString("en-IN",{weekday:"short"})}</span><span class="day-number">${d.getDate()}</span>`;
-      btn.setAttribute("aria-pressed", String(key===state.selectedDate));
-      btn.addEventListener("click", () => { state.selectedDate=key; saveState(); renderAll(); });
-      strip.appendChild(btn);
-    }
-  }
-
-  function renderNutrition() {
-    const day = dayData();
-    const calories = sumEntries(day.entries.filter(e=>e.type==="food"),"calories");
-    const protein = sumEntries(day.entries.filter(e=>e.type==="food"),"protein");
-    const carbs = sumEntries(day.entries.filter(e=>e.type==="food"),"carbs");
-    const fats = sumEntries(day.entries.filter(e=>e.type==="food"),"fats");
-    $("caloriesConsumed").textContent = formatNumber(calories);
-    $("calorieGoalText").textContent = formatNumber(state.goals.calories);
-    $("caloriesRemaining").textContent = formatNumber(Math.max(0,state.goals.calories-calories));
-    $("calorieRing").style.setProperty("--progress", `${clampPercent(calories,state.goals.calories)*3.6}deg`);
-    [["protein",protein],["carbs",carbs],["fats",fats]].forEach(([name,value]) => {
-      $(`${name}Value`).textContent = formatNumber(value);
-      $(`${name}Bar`).style.width = `${clampPercent(value,state.goals[name])}%`;
-      const small = $(`${name}Bar`).closest(".macro-info").querySelector(".macro-label small");
-      if (small) small.textContent = ` / ${formatNumber(state.goals[name])} g`;
-    });
-  }
-  function renderActivity() {
-    const day=dayData();
-    $("burnedValue").textContent=formatNumber(day.burned);
-    $("stepsValue").textContent=formatNumber(day.steps);
-    $("distanceValue").textContent=(day.steps*0.00075).toFixed(1);
-  }
-  function renderWellness() {
-    const day=dayData();
-    $("waterText").textContent=`${day.water} / 8 glasses`;
-    $("waterBar").style.width=`${clampPercent(day.water,8)}%`;
-    $("sleepValue").textContent=Number(day.sleep).toFixed(day.sleep % 1 ? 1 : 0);
-    $("sleepBar").style.width=`${clampPercent(day.sleep,8)}%`;
-    $("streakCount").textContent=state.streak || 0;
-  }
-  function renderEntries() {
-    const day=dayData();
-    const entries=day.entries.slice().reverse();
-    $("activityCount").textContent=`${entries.length} ${entries.length===1?"entry":"entries"}`;
-    $("emptyState").hidden=entries.length>0;
-    $("activityList").innerHTML="";
-    entries.forEach(entry=>{
-      const item=document.createElement("article");
-      item.className="activity-entry";
-      const icon=entry.type==="food"?"◒":"↗";
-      const macros=entry.type==="food" ? `${formatNumber(entry.protein)}g protein · ${formatNumber(entry.carbs)}g carbs · ${formatNumber(entry.fats)}g fats` : "Activity logged";
-      item.innerHTML=`<div class="entry-icon">${icon}</div><div class="entry-copy"><strong></strong><small>${macros}</small></div><div class="entry-calories">${formatNumber(entry.calories)}<small>kcal</small></div>`;
-      item.querySelector(".entry-copy strong").textContent=entry.name;
-      $("activityList").appendChild(item);
-    });
-  }
-  function renderAll() {
-    renderWeek(); renderNutrition(); renderActivity(); renderWellness(); renderEntries(); updateCarousel();
-  }
-  function updateCarousel() {
-    $("carouselTrack").style.transform=`translateX(-${currentSlide*100}%)`;
-    const titles=["Nutrition","Activity","Wellness"];
-    $("activeSlideTitle").textContent=titles[currentSlide];
-    document.querySelectorAll(".dot").forEach((dot,i)=>dot.classList.toggle("active",i===currentSlide));
-  }
-  function goToSlide(index) { currentSlide=(index+3)%3; updateCarousel(); }
-  function showToast(message) {
-    const toast=$("toast"); toast.textContent=message; toast.classList.add("show");
-    clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove("show"),2300);
-  }
-  function openDialog(id) { const dialog=$(id); if (typeof dialog.showModal==="function") dialog.showModal(); else dialog.setAttribute("open",""); }
-  function openEntry(type="food") {
-    $("entryType").value=type; $("modalTitle").textContent=type==="food"?"Log food":"Log activity";
-    $("entryName").value=""; $("entryCalories").value=0; $("entryProtein").value=0; $("entryCarbs").value=0; $("entryFats").value=0;
-    const food=type==="food";
-    ["entryProtein","entryCarbs","entryFats"].forEach(id=>$(id).closest(".field").style.display=food?"flex":"none");
-    $("formNote").textContent=food?"Enter the meal's calories and macros. Estimates are fine.":"Enter the activity name and calories burned, if known.";
-    openDialog("entryDialog");
-  }
-  function saveEntry(event) {
-    event.preventDefault();
-    const type=$("entryType").value;
-    const name=$("entryName").value.trim();
-    if (!name) { showToast("Add a name first."); return; }
-    const entry={ id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), type, name,
-      calories:num($("entryCalories").value), protein:type==="food"?num($("entryProtein").value):0,
-      carbs:type==="food"?num($("entryCarbs").value):0, fats:type==="food"?num($("entryFats").value):0 };
-    const day=dayData(); day.entries.push(entry);
-    if(type==="activity") day.burned+=entry.calories;
-    state.streak=Math.max(state.streak,1);
-    saveState(); $("entryDialog").close(); renderAll(); showToast(type==="food"?"Meal added to your day.":"Activity added to your day.");
-  }
-  function saveActivity(event) {
-    event.preventDefault();
-    const day=dayData();
-    day.steps=num($("stepsInput").value); day.burned=num($("burnedInput").value);
-    saveState(); $("activityDialog").close(); renderAll(); showToast("Activity updated.");
-  }
-  function saveGoals(event) {
-    event.preventDefault();
-    state.goals={calories:Math.max(500,num($("goalCalories").value)),protein:Math.max(1,num($("goalProtein").value)),carbs:Math.max(1,num($("goalCarbs").value)),fats:Math.max(1,num($("goalFats").value))};
-    saveState(); $("settingsDialog").close(); renderAll(); showToast("Daily goals saved.");
-  }
-  function saveSleep(event) {
-    event.preventDefault(); dayData().sleep=Math.min(24,num($("sleepInput").value));
-    saveState(); $("sleepDialog").close(); renderWellness(); showToast("Sleep logged.");
-  }
-
-  $("prevSlide").addEventListener("click",()=>goToSlide(currentSlide-1));
-  $("nextSlide").addEventListener("click",()=>goToSlide(currentSlide+1));
-  document.querySelectorAll(".dot").forEach(dot=>dot.addEventListener("click",()=>goToSlide(Number(dot.dataset.slide))));
-  let touchStartX=0, touchStartY=0;
-  $("carouselViewport").addEventListener("touchstart",e=>{touchStartX=e.changedTouches[0].screenX;touchStartY=e.changedTouches[0].screenY;},{passive:true});
-  $("carouselViewport").addEventListener("touchend",e=>{
-    const dx=e.changedTouches[0].screenX-touchStartX, dy=e.changedTouches[0].screenY-touchStartY;
-    if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)*1.2) goToSlide(currentSlide+(dx<0?1:-1));
-  },{passive:true});
-  document.querySelectorAll("[data-open-add]").forEach(btn=>btn.addEventListener("click",()=>openEntry("food")));
-  document.querySelectorAll("[data-open-activity]").forEach(btn=>btn.addEventListener("click",()=>{const day=dayData();$("stepsInput").value=day.steps;$("burnedInput").value=day.burned;openDialog("activityDialog");}));
-  $("navAdd").addEventListener("click",()=>openEntry("food"));
-  $("entryType").addEventListener("change",()=>{const food=$("entryType").value==="food";$("modalTitle").textContent=food?"Log food":"Log activity";["entryProtein","entryCarbs","entryFats"].forEach(id=>$(id).closest(".field").style.display=food?"flex":"none");$("formNote").textContent=food?"Enter the meal's calories and macros. Estimates are fine.":"Enter the activity name and calories burned, if known.";});
-  $("entryForm").addEventListener("submit",saveEntry);
-  $("activityForm").addEventListener("submit",saveActivity);
-  $("settingsForm").addEventListener("submit",saveGoals);
-  $("sleepForm").addEventListener("submit",saveSleep);
-  $("addWater").addEventListener("click",()=>{const day=dayData();day.water=Math.min(8,day.water+1);saveState();renderWellness();showToast("One glass of water added.");});
-  $("editSleep").addEventListener("click",()=>{$("sleepInput").value=dayData().sleep||8;openDialog("sleepDialog");});
-  $("todayButton").addEventListener("click",()=>{state.selectedDate=todayKey();saveState();renderAll();});
-  $("streakButton").addEventListener("click",()=>showToast("Keep logging your daily habits to build consistency."));
-  document.querySelectorAll(".nav-item").forEach(button=>button.addEventListener("click",()=>{
-    const tab=button.dataset.tab;
-    document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b===button));
-    if(tab==="Settings") {
-      $("goalCalories").value=state.goals.calories;$("goalProtein").value=state.goals.protein;$("goalCarbs").value=state.goals.carbs;$("goalFats").value=state.goals.fats;
-      openDialog("settingsDialog");
-    } else if(tab==="Progress") showToast("Progress view is planned for a later update.");
-    else if(tab==="Meal Plan") showToast("Meal Plan is planned for a later update.");
-    else if(tab==="Home") { window.scrollTo({top:0,behavior:"smooth"}); }
-  }));
-
-  // Ensure every modal's cancel button closes cleanly.
-  document.querySelectorAll("dialog .close-button").forEach(button=>button.addEventListener("click",()=>button.closest("dialog").close()));
-  renderAll();
+"use strict";
+const $=id=>document.getElementById(id);
+const STORE_KEY="calfit_fresh_v1";
+const todayKey=(date=new Date())=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+const fresh=()=>({selectedDate:todayKey(),goals:{calories:2200,protein:100,carbs:250,fats:70},days:{},streak:0,weightGoal:{starting:null,target:75},weights:[]});
+function load(){try{const x=JSON.parse(localStorage.getItem(STORE_KEY));return x&&x.goals&&x.days?{...fresh(),...x,goals:{...fresh().goals,...x.goals},weightGoal:{...fresh().weightGoal,...x.weightGoal},weights:Array.isArray(x.weights)?x.weights:[]}:fresh()}catch{return fresh()}}
+let state=load(),slide=0,toastTimer=null,goalPeriod="3m",detailPeriod="3m";
+function save(){localStorage.setItem(STORE_KEY,JSON.stringify(state))}
+function num(v){return Math.max(0,Number(v)||0)}
+function fmt(v,d=0){return Number(v).toLocaleString("en-IN",{minimumFractionDigits:d,maximumFractionDigits:d})}
+function dayData(key=state.selectedDate){if(!state.days[key])state.days[key]={entries:[],steps:0,burned:0,water:0,sleep:0};return state.days[key]}
+function sum(items,key){return items.reduce((a,x)=>a+num(x[key]),0)}
+function pct(v,g){return Math.min(100,g>0?v/g*100:0)}
+function dateObj(k){const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
+function shift(k,n){const d=dateObj(k);d.setDate(d.getDate()+n);return todayKey(d)}
+function showToast(t){const el=$("toast");el.textContent=t;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),2200)}
+function open(id){const d=$(id);if(d.showModal)d.showModal();else d.setAttribute("open","")}
+function close(id){const d=$(id);if(d.open)d.close();else d.removeAttribute("open")}
+function setView(view){["homeView","progressView","weightDetailsView"].forEach(id=>$(id).hidden=id!==view);$("bottomNav").hidden=view==="weightDetailsView";window.scrollTo({top:0,behavior:"smooth"});if(view==="progressView")renderProgress();if(view==="weightDetailsView")renderWeightDetails()}
+function renderWeek(){const selected=dateObj(state.selectedDate),monday=new Date(selected);monday.setDate(monday.getDate()-((monday.getDay()+6)%7));$("monthLabel").textContent=selected.toLocaleDateString("en-IN",{month:"long",year:"numeric"});$("weekStrip").innerHTML="";for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(monday.getDate()+i);const key=todayKey(d),b=document.createElement("button");b.className=`day-button${key===state.selectedDate?" selected":""}${key===todayKey()?" today":""}`;b.innerHTML=`<span class="day-name">${d.toLocaleDateString("en-IN",{weekday:"short"})}</span><span class="day-number">${d.getDate()}</span>`;b.addEventListener("click",()=>{state.selectedDate=key;save();renderHome()});$("weekStrip").appendChild(b)}}
+function renderNutrition(){const d=dayData(),food=d.entries.filter(e=>e.type==="food"),cal=sum(food,"calories"),p=sum(food,"protein"),c=sum(food,"carbs"),f=sum(food,"fats");$("caloriesConsumed").textContent=fmt(cal);$("calorieGoalText").textContent=fmt(state.goals.calories);$("caloriesRemaining").textContent=fmt(Math.max(0,state.goals.calories-cal));$("calorieRing").style.setProperty("--progress",`${pct(cal,state.goals.calories)*3.6}deg`);[["protein",p],["carbs",c],["fats",f]].forEach(([k,v])=>{$(`${k}Value`).textContent=fmt(v);$(`${k}Bar`).style.width=`${pct(v,state.goals[k])}%`;const s=$(`${k}Bar`).closest(".macro-info").querySelector(".macro-label small");if(s)s.textContent=` / ${fmt(state.goals[k])} g`})}
+function renderActivity(){const d=dayData();$("burnedValue").textContent=fmt(d.burned);$("stepsValue").textContent=fmt(d.steps);$("distanceValue").textContent=(d.steps*.00075).toFixed(1)}
+function renderWellness(){const d=dayData();$("waterText").textContent=`${d.water} / 8 glasses`;$("waterBar").style.width=`${pct(d.water,8)}%`;$("sleepValue").textContent=Number(d.sleep).toFixed(d.sleep%1?1:0);$("sleepBar").style.width=`${pct(d.sleep,8)}%`;$("streakCount").textContent=state.streak||0}
+function renderEntries(){const entries=dayData().entries.slice().reverse();$("activityCount").textContent=`${entries.length} ${entries.length===1?"entry":"entries"}`;$("emptyState").hidden=entries.length>0;$("activityList").innerHTML="";entries.forEach(e=>{const item=document.createElement("article");item.className="activity-entry";item.innerHTML=`<div class="entry-icon">${e.type==="food"?"◒":"↗"}</div><div class="entry-copy"><strong></strong><small>${e.type==="food"?`${fmt(e.protein)}g protein · ${fmt(e.carbs)}g carbs · ${fmt(e.fats)}g fats`:"Activity logged"}</small></div><div class="entry-calories">${fmt(e.calories)}<small>kcal</small></div>`;item.querySelector("strong").textContent=e.name;$("activityList").appendChild(item)})}
+function renderHome(){renderWeek();renderNutrition();renderActivity();renderWellness();renderEntries();updateCarousel()}
+function updateCarousel(){$("carouselTrack").style.transform=`translateX(-${slide*100}%)`; $("activeSlideTitle").textContent=["Nutrition","Activity","Wellness"][slide];document.querySelectorAll(".dot").forEach((b,i)=>b.classList.toggle("active",i===slide))}
+function goSlide(n){slide=(n+3)%3;updateCarousel()}
+function sortedWeights(){return state.weights.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id))}
+function latestWeight(){return sortedWeights().slice(-1)[0]||null}
+function firstWeight(){return sortedWeights()[0]||null}
+function target(){return num(state.weightGoal.target)||75}
+function getStart(){return state.weightGoal.starting==null? (firstWeight()?.weight??null):Number(state.weightGoal.starting)}
+function goalProgress(){const start=getStart(),t=target(),cur=latestWeight()?.weight;if(start==null||cur==null||start===t)return 0;return Math.max(0,Math.min(100,((start-cur)/(start-t))*100))}
+function filteredWeights(period){const all=sortedWeights();if(period==="all"||!all.length)return all;const days={"7d":7,"1m":30,"3m":92,"6m":183,"1y":365,"3mMain":92,"6mMain":183,"1yMain":365}[period]||92;const end=dateObj(state.selectedDate);end.setHours(23,59,59,999);const start=new Date(end);start.setDate(start.getDate()-days+1);return all.filter(w=>dateObj(w.date)>=start&&dateObj(w.date)<=end)}
+function renderProgress(){const current=latestWeight(),first=firstWeight(),t=target(),start=getStart();$("goalTarget").innerHTML=`${fmt(t,1).replace(/\.0$/,"")} <small>kg</small>`;$("goalCurrent").innerHTML=current?`${fmt(current.weight,1)} <small>kg</small>`:`— <small>kg</small>`;$("summaryCurrent").textContent=current?`${fmt(current.weight,1)} kg`:"—";$("summaryCurrentDate").textContent=current?dateObj(current.date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"No check-ins yet";$("summaryChange").textContent=first&&current?`${current.weight-first.weight>0?"+":""}${fmt(current.weight-first.weight,1)} kg`:"—";$("summaryChange").style.color=first&&current&&current.weight<first.weight?"#63927f":"";$("goalProgressBar").style.width=`${goalProgress()}%`;$("goalPercentLabel").textContent=`${Math.round(goalProgress())}% complete`;$("goalStartLabel").textContent=start==null?"Starting weight —":`Started at ${fmt(start,1)} kg`;
+if(!current){$("goalHeadline").textContent="Your journey starts here";$("goalChip").textContent="↘  Set your weight goal";$("goalCaption").textContent="Log your weight to start tracking your progress."}
+else{const diff=current.weight-t;$("goalHeadline").textContent="Your journey, your progress";$("goalChip").textContent=diff===0?"✦  Target weight reached":`${diff>0?"↘":"↗"}  ${fmt(Math.abs(diff),1)} kg to ${diff>0?"lose":"gain"}`;$("goalCaption").textContent=first?`${fmt(Math.abs(current.weight-first.weight),1)} kg ${current.weight<first.weight?"lost":current.weight>first.weight?"gained":"change"} since your first check-in.`:"Your weight goal is set. Keep logging to build your trend."}
+document.querySelectorAll("#goalPeriods .period-button").forEach(b=>b.classList.toggle("active",b.dataset.period===goalPeriod))}
+function dateLabel(key){return dateObj(key).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}
+function svgChart(weights,period){const W=340,H=190,L=37,R=12,T=16,B=29,plotW=W-L-R,plotH=H-T-B,t=target();if(!weights.length)return "";let vals=weights.map(w=>w.weight).concat([t]);let min=Math.floor((Math.min(...vals)-1)*2)/2,max=Math.ceil((Math.max(...vals)+1)*2)/2;if(max-min<2){min-=1;max+=1}const x=i=>L+(weights.length===1?plotW/2:i/(weights.length-1)*plotW),y=v=>T+(max-v)/(max-min)*plotH;let grid="";for(let i=0;i<5;i++){const val=min+(max-min)*i/4,yy=y(val);grid+=`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="#e7ecef" stroke-width="1"/><text x="${L-7}" y="${yy+3}" text-anchor="end" fill="#9aa4ab" font-size="9">${val.toFixed(1)}</text>`}const pts=weights.map((w,i)=>`${x(i)},${y(w.weight)}`).join(" ");const targetY=y(t);let marks=weights.map((w,i)=>`<circle cx="${x(i)}" cy="${y(w.weight)}" r="4" fill="#fff" stroke="#607b9d" stroke-width="2"><title>${dateLabel(w.date)}: ${w.weight.toFixed(1)} kg${w.note?` — ${w.note}`:""}</title></circle>`).join("");let labels="";const indices=[...new Set([0,Math.floor((weights.length-1)/2),weights.length-1])];indices.forEach(i=>{labels+=`<text x="${x(i)}" y="${H-8}" text-anchor="${i===0?"start":i===weights.length-1?"end":"middle"}" fill="#909ba3" font-size="9">${dateLabel(weights[i].date)}</text>`});const fillArea=weights.length>1?`<polygon points="${x(0)},${y(weights[0].weight)} ${pts} ${x(weights.length-1)},${H-B} ${x(0)},${H-B}" fill="#dce6ef" opacity=".58"/>`:"";return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight history line chart">${grid}<line x1="${L}" y1="${targetY}" x2="${W-R}" y2="${targetY}" stroke="#b5c1c9" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${W-R}" y="${Math.max(10,targetY-5)}" text-anchor="end" fill="#8c9aa3" font-size="9">Target ${t} kg</text>${fillArea}${weights.length>1?`<polyline points="${pts}" fill="none" stroke="#607b9d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:""}${marks}${labels}</svg>`}
+function renderWeightDetails(){const all=sortedWeights(),current=latestWeight(),first=firstWeight(),t=target(),start=getStart();$("detailCurrent").textContent=current?fmt(current.weight,1):"—";$("detailStarting").textContent=start==null?"— kg":`${fmt(start,1)} kg`;$("detailTarget").textContent=`${fmt(t,1)} kg`;$("detailRemaining").textContent=current?`${fmt(Math.abs(current.weight-t),1)} kg`:"— kg";$("detailChange").textContent=first&&current?`${current.weight<first.weight?"−":current.weight>first.weight?"+":"±"}${fmt(Math.abs(current.weight-first.weight),1)} kg overall`:"No change yet";$("detailChange").style.background=first&&current&&current.weight<first.weight?"#e6f2ec":"";const weights=filteredWeights(detailPeriod);if(weights.length){const delta=weights[weights.length-1].weight-weights[0].weight;$("chartPeriodChange").textContent=`${delta>0?"+":""}${fmt(delta,1)} kg`;$("chartPeriodLabel").textContent=weights.length===1?"1 check-in in this period":`${weights.length} check-ins · ${dateLabel(weights[0].date)} – ${dateLabel(weights[weights.length-1].date)}`;$("weightChartWrap").innerHTML=svgChart(weights,detailPeriod)}else{$("chartPeriodChange").textContent="—";$("chartPeriodLabel").textContent="No weight history in this period";$("weightChartWrap").innerHTML='<div class="chart-empty"><span>↗</span><strong>Your graph will appear here</strong><p>Log your first weight to start building your trend.</p></div>'}
+document.querySelectorAll("#detailPeriods .period-button").forEach(b=>b.classList.toggle("active",b.dataset.period===detailPeriod));$("historyCount").textContent=`${all.length} ${all.length===1?"entry":"entries"}`;$("weightHistoryList").innerHTML="";if(!all.length){$("weightHistoryList").innerHTML='<div class="history-empty">Your saved measurements will appear here.</div>';return}all.slice().reverse().forEach(w=>{const item=document.createElement("article");item.className="weight-history-item";item.innerHTML=`<div class="history-date-mark">◷</div><div class="history-copy"><strong>${dateObj(w.date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</strong><small></small></div><div class="history-weight">${fmt(w.weight,1)} kg</div><div class="history-actions"><button class="edit-weight">Edit</button><button class="delete-weight">×</button></div>`;item.querySelector(".history-copy small").textContent=w.note||"Weight check-in";item.querySelector(".edit-weight").addEventListener("click",()=>editWeight(w.id));item.querySelector(".delete-weight").addEventListener("click",()=>deleteWeight(w.id));$("weightHistoryList").appendChild(item)})}
+function openWeight(){ $("weightModalTitle").textContent="Log weight";$("weightInput").value=latestWeight()?.weight??"";$("weightDateInput").value=todayKey();$("weightNoteInput").value="";$("weightEditId").value="";open("weightDialog")}
+function saveWeight(event){event.preventDefault();const weight=Number($("weightInput").value),date=$("weightDateInput").value,id=$("weightEditId").value;if(!date||!Number.isFinite(weight)||weight<20||weight>400){showToast("Enter a valid weight and date.");return}const item={id:id||String(Date.now()),weight,date,note:$("weightNoteInput").value.trim()};if(id){state.weights=state.weights.map(w=>w.id===id?item:w)}else{state.weights=state.weights.filter(w=>w.date!==date);state.weights.push(item)}state.weights.sort((a,b)=>a.date.localeCompare(b.date));if(state.weightGoal.starting==null&&state.weights.length)state.weightGoal.starting=state.weights[0].weight;save();close("weightDialog");renderProgress();renderWeightDetails();showToast("Weight check-in saved.")}
+function editWeight(id){const w=state.weights.find(x=>x.id===id);if(!w)return;$("editWeightId").value=id;$("editWeightInput").value=w.weight;$("editWeightDateInput").value=w.date;$("editWeightNoteInput").value=w.note||"";open("editWeightDialog")}
+function saveEditedWeight(e){e.preventDefault();const id=$("editWeightId").value,weight=Number($("editWeightInput").value),date=$("editWeightDateInput").value;if(!date||!Number.isFinite(weight)||weight<20||weight>400){showToast("Enter a valid weight and date.");return}state.weights=state.weights.map(w=>w.id===id?{...w,weight,date,note:$("editWeightNoteInput").value.trim()}:w).sort((a,b)=>a.date.localeCompare(b.date));save();close("editWeightDialog");renderProgress();renderWeightDetails();showToast("Weight entry updated.")}
+function deleteWeight(id){if(!confirm("Delete this weight check-in?"))return;state.weights=state.weights.filter(w=>w.id!==id);if(state.weightGoal.starting!=null&&state.weights.length===0)state.weightGoal.starting=null;save();renderProgress();renderWeightDetails();showToast("Weight entry deleted.")}
+function openGoal(){const start=getStart();$("startingWeightInput").value=start??"";$("targetWeightInput").value=target();open("goalDialog")}
+function saveGoal(e){e.preventDefault();const start=$("startingWeightInput").value.trim(),t=Number($("targetWeightInput").value);if(!Number.isFinite(t)||t<20||t>400){showToast("Enter a valid target weight.");return}state.weightGoal={starting:start===""?null:Number(start),target:t};if(state.weightGoal.starting==null&&state.weights.length)state.weightGoal.starting=firstWeight().weight;save();close("goalDialog");renderProgress();renderWeightDetails();showToast("Weight goal saved.")}
+function openEntry(type="food"){$("entryType").value=type;$("modalTitle").textContent=type==="food"?"Log food":"Log activity";$("entryName").value="";["entryCalories","entryProtein","entryCarbs","entryFats"].forEach(id=>$(id).value=0);const food=type==="food";["entryProtein","entryCarbs","entryFats"].forEach(id=>$(id).closest(".field").style.display=food?"flex":"none");$("formNote").textContent=food?"Enter meal calories and macros. Estimates are fine.":"Enter the activity name and calories burned, if known.";open("entryDialog")}
+function saveEntry(e){e.preventDefault();const type=$("entryType").value,name=$("entryName").value.trim();if(!name)return;const item={id:String(Date.now()),type,name,calories:num($("entryCalories").value),protein:type==="food"?num($("entryProtein").value):0,carbs:type==="food"?num($("entryCarbs").value):0,fats:type==="food"?num($("entryFats").value):0};dayData().entries.push(item);if(type==="activity")dayData().burned+=item.calories;state.streak=Math.max(state.streak,1);save();close("entryDialog");renderHome();showToast("Entry saved.")}
+function saveActivity(e){e.preventDefault();const d=dayData();d.steps=num($("stepsInput").value);d.burned=num($("burnedInput").value);save();close("activityDialog");renderHome();showToast("Activity updated.")}
+function saveSettings(e){e.preventDefault();state.goals={calories:Math.max(500,num($("goalCalories").value)),protein:Math.max(1,num($("goalProtein").value)),carbs:Math.max(1,num($("goalCarbs").value)),fats:Math.max(1,num($("goalFats").value))};save();close("settingsDialog");renderHome();showToast("Daily goals saved.")}
+function saveSleep(e){e.preventDefault();dayData().sleep=Math.min(24,num($("sleepInput").value));save();close("sleepDialog");renderWellness();showToast("Sleep logged.")}
+$("prevSlide").addEventListener("click",()=>goSlide(slide-1));$("nextSlide").addEventListener("click",()=>goSlide(slide+1));document.querySelectorAll(".dot").forEach(b=>b.addEventListener("click",()=>goSlide(Number(b.dataset.slide))));let sx=0,sy=0;$("carouselViewport").addEventListener("touchstart",e=>{sx=e.changedTouches[0].screenX;sy=e.changedTouches[0].screenY},{passive:true});$("carouselViewport").addEventListener("touchend",e=>{const dx=e.changedTouches[0].screenX-sx,dy=e.changedTouches[0].screenY-sy;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.2)goSlide(slide+(dx<0?1:-1))},{passive:true});
+document.querySelectorAll("[data-open-add]").forEach(b=>b.addEventListener("click",()=>openEntry("food")));document.querySelectorAll("[data-open-activity]").forEach(b=>b.addEventListener("click",()=>{const d=dayData();$("stepsInput").value=d.steps;$("burnedInput").value=d.burned;open("activityDialog")}));$("navAdd").addEventListener("click",()=>openEntry("food"));$("entryType").addEventListener("change",()=>{const f=$("entryType").value==="food";$("modalTitle").textContent=f?"Log food":"Log activity";["entryProtein","entryCarbs","entryFats"].forEach(id=>$(id).closest(".field").style.display=f?"flex":"none")});$("entryForm").addEventListener("submit",saveEntry);$("activityForm").addEventListener("submit",saveActivity);$("settingsForm").addEventListener("submit",saveSettings);$("sleepForm").addEventListener("submit",saveSleep);$("addWater").addEventListener("click",()=>{dayData().water=Math.min(8,dayData().water+1);save();renderWellness();showToast("Water added.")});$("editSleep").addEventListener("click",()=>{$("sleepInput").value=dayData().sleep||8;open("sleepDialog")});$("todayButton").addEventListener("click",()=>{state.selectedDate=todayKey();save();renderHome()});$("streakButton").addEventListener("click",()=>showToast("Keep logging your daily habits to build consistency."));$("homeBrand").addEventListener("click",()=>setView("homeView"));
+document.querySelectorAll(".nav-item").forEach(b=>b.addEventListener("click",()=>{const tab=b.dataset.tab;document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n===b));if(tab==="Home"){setView("homeView")}else if(tab==="Progress"){setView("progressView")}else if(tab==="Settings"){ $("goalCalories").value=state.goals.calories;$("goalProtein").value=state.goals.protein;$("goalCarbs").value=state.goals.carbs;$("goalFats").value=state.goals.fats;open("settingsDialog")}else if(tab==="Meal Plan")showToast("Meal Plan will be added in a later phase.")}));
+$("setGoalButton").addEventListener("click",openGoal);$("viewWeightDetails").addEventListener("click",()=>setView("weightDetailsView"));$("backToProgress").addEventListener("click",()=>setView("progressView"));$("logWeightMain").addEventListener("click",openWeight);$("logWeightDetail").addEventListener("click",openWeight);$("weightForm").addEventListener("submit",saveWeight);$("goalForm").addEventListener("submit",saveGoal);$("editWeightForm").addEventListener("submit",saveEditedWeight);
+document.querySelectorAll("#goalPeriods .period-button").forEach(b=>b.addEventListener("click",()=>{goalPeriod=b.dataset.period;renderProgress()}));document.querySelectorAll("#detailPeriods .period-button").forEach(b=>b.addEventListener("click",()=>{detailPeriod=b.dataset.period;renderWeightDetails()}));document.querySelectorAll("dialog .close-button").forEach(b=>b.addEventListener("click",()=>close(b.closest("dialog").id)));
+renderHome();renderProgress();
 })();
