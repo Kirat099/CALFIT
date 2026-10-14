@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e9edf1">
+  <title>CALFIT — Daily health</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark" aria-hidden="true">C</div>
+        <div>
+          <p class="eyebrow">YOUR DAILY COMPANION</p>
+          <h1>CALFIT</h1>
+        </div>
+      </div>
+      <button class="streak-pill" id="streakButton" aria-label="View streak">
+        <span class="flame" aria-hidden="true">♨</span>
+        <span><strong id="streakCount">0</strong><small>day streak</small></span>
+      </button>
+    </header>
+
+    <section class="week-section" aria-label="Choose date">
+      <div class="section-heading">
+        <div><p class="eyebrow">YOUR WEEK</p><h2 id="monthLabel">This week</h2></div>
+        <button class="today-button" id="todayButton">Today ↗</button>
+      </div>
+      <div class="week-strip" id="weekStrip"></div>
+    </section>
+
+    <main>
+      <section class="dashboard-section">
+        <div class="section-heading dashboard-heading">
+          <div><p class="eyebrow">YOUR DAILY OVERVIEW</p><h2>Today's <span id="activeSlideTitle">Nutrition</span></h2></div>
+          <div class="slide-arrows">
+            <button class="icon-button" id="prevSlide" aria-label="Previous dashboard">‹</button>
+            <button class="icon-button" id="nextSlide" aria-label="Next dashboard">›</button>
+          </div>
+        </div>
+
+        <div class="carousel-viewport" id="carouselViewport">
+          <div class="carousel-track" id="carouselTrack">
+            <article class="dashboard-card nutrition-card">
+              <div class="card-topline"><span class="soft-label">CALORIES IN</span><span class="status-dot">TODAY</span></div>
+              <div class="nutrition-main">
+                <div class="calorie-ring" id="calorieRing">
+                  <div class="ring-inner">
+                    <strong id="caloriesConsumed">0</strong>
+                    <span>kcal eaten</span>
+                  </div>
+                </div>
+                <div class="calorie-summary">
+                  <span class="muted">Daily goal</span>
+                  <strong><span id="calorieGoalText">2,200</span> <small>kcal</small></strong>
+                  <div class="remaining-pill"><span id="caloriesRemaining">2,200</span> left</div>
+                </div>
+              </div>
+              <div class="macro-list">
+                <div class="macro-row">
+                  <div class="macro-icon protein">P</div>
+                  <div class="macro-info"><div class="macro-label"><span>Protein</span><strong><span id="proteinValue">0</span><small> / 100 g</small></strong></div><div class="progress-track"><span id="proteinBar" class="progress-fill protein-fill"></span></div></div>
+                </div>
+                <div class="macro-row">
+                  <div class="macro-icon carbs">C</div>
+                  <div class="macro-info"><div class="macro-label"><span>Carbs</span><strong><span id="carbsValue">0</span><small> / 250 g</small></strong></div><div class="progress-track"><span id="carbsBar" class="progress-fill carbs-fill"></span></div></div>
+                </div>
+                <div class="macro-row">
+                  <div class="macro-icon fats">F</div>
+                  <div class="macro-info"><div class="macro-label"><span>Fats</span><strong><span id="fatsValue">0</span><small> / 70 g</small></strong></div><div class="progress-track"><span id="fatsBar" class="progress-fill fats-fill"></span></div></div>
+                </div>
+              </div>
+              <button class="card-action" data-open-add>＋ Log food <span>→</span></button>
+            </article>
+
+            <article class="dashboard-card activity-card">
+              <div class="card-topline"><span class="soft-label">DAILY MOVEMENT</span><span class="status-dot">TODAY</span></div>
+              <div class="activity-highlight">
+                <div><span class="muted">Calories burned</span><strong><span id="burnedValue">0</span> <small>kcal</small></strong><p class="card-subtitle">Keep moving, one step at a time.</p></div>
+                <div class="activity-orb" aria-hidden="true">↗</div>
+              </div>
+              <div class="stat-grid">
+                <div class="stat-tile"><span class="stat-icon">⌁</span><span class="muted">Steps</span><strong id="stepsValue">0</strong><small>steps today</small></div>
+                <div class="stat-tile"><span class="stat-icon">◉</span><span class="muted">Distance</span><strong><span id="distanceValue">0.0</span><small> km</small></strong><small>estimated</small></div>
+              </div>
+              <button class="card-action" data-open-activity>＋ Update activity <span>→</span></button>
+            </article>
+
+            <article class="dashboard-card wellness-card">
+              <div class="card-topline"><span class="soft-label">DAILY WELLNESS</span><span class="status-dot">TODAY</span></div>
+              <div class="wellness-title"><div><span class="muted">Small habits, big progress</span><h3>Your daily balance</h3></div><div class="wellness-spark" aria-hidden="true">✳</div></div>
+              <div class="wellness-list">
+                <div class="wellness-row"><span class="wellness-icon water">◌</span><div class="wellness-info"><strong>Water</strong><small id="waterText">0 / 8 glasses</small><div class="progress-track"><span id="waterBar" class="progress-fill water-fill"></span></div></div><button class="round-add" id="addWater" aria-label="Add one glass of water">＋</button></div>
+                <div class="wellness-row"><span class="wellness-icon sleep">☾</span><div class="wellness-info"><strong>Sleep</strong><small><span id="sleepValue">0</span> hours logged</small><div class="progress-track"><span id="sleepBar" class="progress-fill sleep-fill"></span></div></div><button class="round-add" id="editSleep" aria-label="Log sleep">＋</button></div>
+              </div>
+              <div class="focus-note"><span>✦</span><div><strong>Today's focus</strong><p id="focusText">Build consistency, not perfection.</p></div></div>
+            </article>
+          </div>
+        </div>
+        <div class="carousel-footer">
+          <div class="carousel-dots" id="carouselDots" aria-label="Choose dashboard slide">
+            <button class="dot active" data-slide="0" aria-label="Nutrition slide"></button>
+            <button class="dot" data-slide="1" aria-label="Activity slide"></button>
+            <button class="dot" data-slide="2" aria-label="Wellness slide"></button>
+          </div>
+          <span class="swipe-hint">SWIPE TO EXPLORE <span aria-hidden="true">↔</span></span>
+        </div>
+      </section>
+
+      <section class="activity-feed">
+        <div class="section-heading">
+          <div><p class="eyebrow">KEEP YOUR MOMENTUM</p><h2>Today's Activity</h2></div>
+          <span class="activity-count" id="activityCount">0 entries</span>
+        </div>
+        <div class="empty-state" id="emptyState">
+          <div class="empty-illustration" aria-hidden="true"><span>＋</span><i></i><b></b></div>
+          <h3>Your day starts here</h3>
+          <p>Log a meal or activity and your progress will show up here.</p>
+          <button class="primary-button" data-open-add>＋ Add your first entry</button>
+        </div>
+        <div class="activity-list" id="activityList"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-item active" data-tab="Home"><span class="nav-symbol">⌂</span><small>Home</small></button>
+      <button class="nav-item" data-tab="Progress"><span class="nav-symbol">◔</span><small>Progress</small></button>
+      <button class="nav-add" id="navAdd" aria-label="Add food or activity">＋</button>
+      <button class="nav-item" data-tab="Meal Plan"><span class="nav-symbol">▤</span><small>Meal Plan</small></button>
+      <button class="nav-item" data-tab="Settings"><span class="nav-symbol">⚙</span><small>Settings</small></button>
+    </nav>
+  </div>
+
+  <dialog id="entryDialog" class="modal">
+    <form method="dialog" id="entryForm">
+      <div class="modal-header"><div><p class="eyebrow">MAKE IT COUNT</p><h2 id="modalTitle">Log food</h2></div><button class="icon-button close-button" value="cancel" aria-label="Close">×</button></div>
+      <div class="field"><label for="entryType">Entry type</label><select id="entryType"><option value="food">Food / meal</option><option value="activity">Activity</option></select></div>
+      <div class="field"><label for="entryName">Name</label><input id="entryName" placeholder="e.g. Besan chilla" maxlength="60" required></div>
+      <div class="form-grid">
+        <div class="field"><label for="entryCalories">Calories (kcal)</label><input id="entryCalories" type="number" min="0" max="10000" value="0" inputmode="numeric"></div>
+        <div class="field"><label for="entryProtein">Protein (g)</label><input id="entryProtein" type="number" min="0" max="500" value="0" inputmode="decimal"></div>
+        <div class="field"><label for="entryCarbs">Carbs (g)</label><input id="entryCarbs" type="number" min="0" max="1000" value="0" inputmode="decimal"></div>
+        <div class="field"><label for="entryFats">Fats (g)</label><input id="entryFats" type="number" min="0" max="500" value="0" inputmode="decimal"></div>
+      </div>
+      <p class="form-note" id="formNote">For a meal, enter its calories and macros. Values can be estimates.</p>
+      <button class="primary-button full-width" id="saveEntry" value="default">Save entry</button>
+    </form>
+  </dialog>
+
+  <dialog id="activityDialog" class="modal">
+    <form method="dialog" id="activityForm">
+      <div class="modal-header"><div><p class="eyebrow">MOVE A LITTLE MORE</p><h2>Update activity</h2></div><button class="icon-button close-button" value="cancel" aria-label="Close">×</button></div>
+      <div class="field"><label for="stepsInput">Steps today</label><input id="stepsInput" type="number" min="0" max="100000" inputmode="numeric" placeholder="e.g. 6500"></div>
+      <div class="field"><label for="burnedInput">Calories burned (kcal)</label><input id="burnedInput" type="number" min="0" max="20000" inputmode="numeric" placeholder="e.g. 350"></div>
+      <button class="primary-button full-width" value="default">Save activity</button>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="modal">
+    <form method="dialog" id="settingsForm">
+      <div class="modal-header"><div><p class="eyebrow">MAKE IT YOURS</p><h2>Daily goals</h2></div><button class="icon-button close-button" value="cancel" aria-label="Close">×</button></div>
+      <div class="field"><label for="goalCalories">Calorie goal (kcal)</label><input id="goalCalories" type="number" min="500" max="10000" value="2200"></div>
+      <div class="field"><label for="goalProtein">Protein goal (g)</label><input id="goalProtein" type="number" min="1" max="500" value="100"></div>
+      <div class="field"><label for="goalCarbs">Carbs goal (g)</label><input id="goalCarbs" type="number" min="1" max="1000" value="250"></div>
+      <div class="field"><label for="goalFats">Fats goal (g)</label><input id="goalFats" type="number" min="1" max="500" value="70"></div>
+      <button class="primary-button full-width" value="default">Save goals</button>
+    </form>
+  </dialog>
+
+  <dialog id="sleepDialog" class="modal">
+    <form method="dialog" id="sleepForm">
+      <div class="modal-header"><div><p class="eyebrow">RECOVERY MATTERS</p><h2>Log your sleep</h2></div><button class="icon-button close-button" value="cancel" aria-label="Close">×</button></div>
+      <div class="field"><label for="sleepInput">Hours slept</label><input id="sleepInput" type="number" min="0" max="24" step="0.5" value="8"></div>
+      <button class="primary-button full-width" value="default">Save sleep</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
